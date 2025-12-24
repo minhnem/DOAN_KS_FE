@@ -64,7 +64,7 @@ const TeacherSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
       ).toISOString();
 
       await createSessionForTeacher({
-        classId,
+        courseId: classId,
         title,
         startTime,
         endTime,

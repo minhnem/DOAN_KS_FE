@@ -1,32 +1,27 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Button, Alert } from "react-native";
-import { BarCodeScanner } from "expo-barcode-scanner";
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Location from "expo-location";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { checkInAttendanceApi } from "../api/client";
 
-// Dùng generic rộng để tránh phụ thuộc vào stack hiện tại
 type Props = NativeStackScreenProps<any>;
 
 const QRScannerScreen: React.FC<Props> = ({ navigation }) => {
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(
-    null
-  );
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+  const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const { status: camStatus } = await BarCodeScanner.requestPermissionsAsync();
-      setHasCameraPermission(camStatus === "granted");
-
-      const { status: locStatus } =
-        await Location.requestForegroundPermissionsAsync();
+      const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
       setHasLocationPermission(locStatus === "granted");
     })();
   }, []);
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
+    if (scanned) return;
+    
     try {
       setScanned(true);
 
@@ -71,39 +66,181 @@ const QRScannerScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
-  if (hasCameraPermission === null || hasLocationPermission === null) {
+  // Đang kiểm tra quyền
+  if (!cameraPermission || hasLocationPermission === null) {
     return (
       <View style={styles.center}>
-        <Text>Đang xin quyền camera và vị trí...</Text>
+        <Text style={styles.permissionText}>Đang xin quyền camera và vị trí...</Text>
       </View>
     );
   }
 
-  if (!hasCameraPermission || !hasLocationPermission) {
+  // Chưa có quyền camera
+  if (!cameraPermission.granted) {
     return (
       <View style={styles.center}>
-        <Text>Ứng dụng cần quyền camera và vị trí để điểm danh.</Text>
+        <Text style={styles.permissionText}>Ứng dụng cần quyền camera để quét mã QR.</Text>
+        <TouchableOpacity style={styles.permissionButton} onPress={requestCameraPermission}>
+          <Text style={styles.permissionButtonText}>Cấp quyền Camera</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Chưa có quyền vị trí
+  if (!hasLocationPermission) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.permissionText}>Ứng dụng cần quyền vị trí để điểm danh.</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <BarCodeScanner
-        onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+      <CameraView
         style={styles.scanner}
+        facing="back"
+        barcodeScannerSettings={{
+          barcodeTypes: ["qr"],
+        }}
+        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
       />
-      {scanned && <Button title="Quét lại" onPress={() => setScanned(false)} />}
+      
+      {/* Overlay với khung quét */}
+      <View style={styles.overlay}>
+        <View style={styles.overlayTop} />
+        <View style={styles.overlayMiddle}>
+          <View style={styles.overlaySide} />
+          <View style={styles.scanFrame}>
+            <View style={[styles.corner, styles.cornerTL]} />
+            <View style={[styles.corner, styles.cornerTR]} />
+            <View style={[styles.corner, styles.cornerBL]} />
+            <View style={[styles.corner, styles.cornerBR]} />
+          </View>
+          <View style={styles.overlaySide} />
+        </View>
+        <View style={styles.overlayBottom}>
+          <Text style={styles.scanHint}>Đưa mã QR vào khung để quét</Text>
+          {scanned && (
+            <TouchableOpacity style={styles.rescanButton} onPress={() => setScanned(false)}>
+              <Text style={styles.rescanButtonText}>Quét lại</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scanner: { flex: 1 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  scanner: {
+    flex: 1,
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f7fa",
+    padding: 20,
+  },
+  permissionText: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  permissionButton: {
+    backgroundColor: "#4361ee",
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  permissionButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  overlayTop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+  },
+  overlayMiddle: {
+    flexDirection: "row",
+  },
+  overlaySide: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+  },
+  scanFrame: {
+    width: 250,
+    height: 250,
+    position: "relative",
+  },
+  corner: {
+    position: "absolute",
+    width: 30,
+    height: 30,
+    borderColor: "#4361ee",
+  },
+  cornerTL: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderTopLeftRadius: 12,
+  },
+  cornerTR: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderTopRightRadius: 12,
+  },
+  cornerBL: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderBottomLeftRadius: 12,
+  },
+  cornerBR: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomRightRadius: 12,
+  },
+  overlayBottom: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    paddingTop: 30,
+  },
+  scanHint: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  rescanButton: {
+    marginTop: 20,
+    backgroundColor: "#4361ee",
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  rescanButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });
 
 export default QRScannerScreen;
-
-

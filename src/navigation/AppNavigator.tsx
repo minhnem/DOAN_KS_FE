@@ -1,67 +1,97 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ActivityIndicator, View } from "react-native";
+import { useAuth } from "../context/AuthContext";
 
+// Auth
 import LoginScreen from "../screens/LoginScreen";
+
+// Teacher Screens
 import TeacherClassListScreen from "../screens/TeacherClassListScreen";
 import TeacherSessionListScreen from "../screens/TeacherSessionListScreen";
 import TeacherQrScreen from "../screens/TeacherQrScreen";
 import TeacherAttendanceListScreen from "../screens/TeacherAttendanceListScreen";
+import CreateClassScreen from "../screens/CreateClassScreen";
+
+// Student Screens
+import StudentClassListScreen from "../screens/StudentClassListScreen";
+import StudentSessionListScreen from "../screens/StudentSessionListScreen";
+import QRScannerScreen from "../screens/QRScannerScreen";
+import AttendanceHistoryScreen from "../screens/AttendanceHistoryScreen";
+import JoinClassScreen from "../screens/JoinClassScreen";
 
 export type RootStackParamList = {
+  // Auth
   Login: undefined;
+
+  // Teacher
   TeacherClasses: undefined;
   TeacherSessions: { classId: string };
   TeacherQR: { sessionId: string };
   TeacherAttendance: { sessionId: string };
+  CreateClass: undefined;
+
+  // Student
+  StudentClasses: undefined;
+  StudentSessions: { classId: string };
+  QRScanner: { sessionId: string };
+  AttendanceHistory: undefined;
+  JoinClass: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { isLoggedIn, userRole, isLoading } = useAuth();
 
-  useEffect(() => {
-    const checkToken = async () => {
-      const token = await AsyncStorage.getItem("accessToken");
-      setIsLoggedIn(!!token);
-      setIsCheckingAuth(false);
-    };
-    checkToken();
-  }, []);
-
-  if (isCheckingAuth) {
+  if (isLoading) {
     return (
       <View
         style={{
           flex: 1,
           alignItems: "center",
           justifyContent: "center",
+          backgroundColor: "#f5f7fa",
         }}
       >
-        <ActivityIndicator />
+        <ActivityIndicator size="large" color="#4361ee" />
       </View>
     );
   }
 
   return (
     <NavigationContainer>
-      <Stack.Navigator>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: "#4361ee",
+          },
+          headerTintColor: "#fff",
+          headerTitleStyle: {
+            fontWeight: "600",
+          },
+        }}
+      >
         {!isLoggedIn ? (
+          // Auth Stack
           <Stack.Screen
             name="Login"
             component={LoginScreen}
-            options={{ title: "Đăng nhập" }}
+            options={{ headerShown: false }}
           />
-        ) : (
+        ) : userRole === 2 ? (
+          // Teacher Stack
           <>
             <Stack.Screen
               name="TeacherClasses"
               component={TeacherClassListScreen}
-              options={{ title: "Lớp đang dạy" }}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CreateClass"
+              component={CreateClassScreen}
+              options={{ title: "Tạo lớp học" }}
             />
             <Stack.Screen
               name="TeacherSessions"
@@ -79,6 +109,35 @@ const AppNavigator = () => {
               options={{ title: "SV đã điểm danh" }}
             />
           </>
+        ) : (
+          // Student Stack (default)
+          <>
+            <Stack.Screen
+              name="StudentClasses"
+              component={StudentClassListScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="JoinClass"
+              component={JoinClassScreen}
+              options={{ title: "Tham gia lớp" }}
+            />
+            <Stack.Screen
+              name="StudentSessions"
+              component={StudentSessionListScreen}
+              options={{ title: "Buổi học" }}
+            />
+            <Stack.Screen
+              name="QRScanner"
+              component={QRScannerScreen}
+              options={{ title: "Quét QR điểm danh" }}
+            />
+            <Stack.Screen
+              name="AttendanceHistory"
+              component={AttendanceHistoryScreen}
+              options={{ title: "Lịch sử điểm danh" }}
+            />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>
@@ -86,5 +145,3 @@ const AppNavigator = () => {
 };
 
 export default AppNavigator;
-
-

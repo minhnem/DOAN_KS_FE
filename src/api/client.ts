@@ -2,10 +2,13 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Đặt baseURL trỏ tới backend của bạn
-// - Android emulator: http://10.0.2.2:5000
-// - iOS simulator: http://localhost:5000
-// - Thiết bị thật: http://<ip-lan>:5000
-const API_BASE_URL = "http://localhost:3001";
+// - Android emulator: http://10.0.2.2:3001
+// - iOS simulator: http://localhost:3001
+// - Thiết bị thật (iPhone/Android): http://<ip-lan>:3001
+// 
+// ⚠️ QUAN TRỌNG: Thay YOUR_IP bằng IP máy tính của bạn
+// Mở CMD gõ "ipconfig" để xem IPv4 Address (VD: 192.168.1.100)
+const API_BASE_URL = "http://192.168.1.184:3001";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -27,14 +30,47 @@ api.interceptors.request.use(async (config: any) => {
 export const loginApi = (email: string, password: string) =>
   api.post("/auth/login", { email, password });
 
-// ==== Teacher APIs (backend cần bổ sung tương ứng) ====
-export const getTeacherClasses = () => api.get("/teacher/classes");
+export const registerApi = (data: { name: string; email: string; password: string; rule?: number }) =>
+  api.post("/auth/register", data);
 
+// ==== CLASS MANAGEMENT ====
+// Giảng viên: Tạo lớp học mới
+export const createClassApi = (data: {
+  name: string;
+  description?: string;
+  maxStudents?: number;
+}) => api.post("/class/create", data);
+
+// Giảng viên: Lấy danh sách lớp đang dạy
+export const getTeacherClasses = () => api.get("/class/teacher");
+
+// Giảng viên: Lấy danh sách sinh viên trong lớp
+export const getClassStudents = (classId: string) =>
+  api.get(`/class/${classId}/students`);
+
+// Giảng viên: Đóng lớp học
+export const closeClass = (classId: string) =>
+  api.put(`/class/${classId}/close`);
+
+// Sinh viên: Lấy danh sách lớp đã tham gia
+export const getStudentClasses = () => api.get("/class/student");
+
+// Sinh viên: Tham gia lớp bằng mã code
+export const joinClassByCodeApi = (code: string) =>
+  api.post("/class/join", { code });
+
+// Chung: Lấy thông tin chi tiết lớp
+export const getClassDetail = (classId: string) =>
+  api.get(`/class/${classId}`);
+
+// ==== SESSION/ATTENDANCE MANAGEMENT ====
+// Giảng viên: Lấy danh sách buổi điểm danh theo lớp
 export const getSessionsByClassForTeacher = (classId: string) =>
-  api.get(`/teacher/classes/${classId}/sessions`);
+  api.get(`/attendance/class/${classId}/sessions`);
 
+// Giảng viên: Tạo buổi điểm danh mới
 export const createSessionForTeacher = (payload: {
-  classId?: string;
+  courseId?: string;
   title?: string;
   startTime: string;
   endTime: string;
@@ -45,19 +81,19 @@ export const createSessionForTeacher = (payload: {
   radius?: number;
 }) => api.post("/attendance/sessions", payload);
 
+// Giảng viên: Sinh mã QR cho buổi điểm danh
 export const generateQrForSession = (sessionId: string, expiresInMinutes = 5) =>
   api.post(`/attendance/sessions/${sessionId}/qr`, { expiresInMinutes });
 
+// Giảng viên: Lấy danh sách điểm danh theo buổi
 export const getAttendanceBySession = (sessionId: string) =>
-  api.get(`/teacher/sessions/${sessionId}/attendances`);
+  api.get(`/attendance/sessions/${sessionId}/attendances`);
 
-// ==== Student attendance history (phục vụ màn AttendanceHistoryScreen) ====
-export const getAttendanceHistory = () => api.get("/student/attendance");
+// Sinh viên: Lấy danh sách buổi điểm danh theo lớp
+export const getSessionsByClass = (classId: string) =>
+  api.get(`/attendance/class/${classId}/sessions`);
 
-// ==== Student class list (phục vụ ClassListScreen cũ) ====
-export const getStudentClasses = () => api.get("/student/classes");
-
-// ==== Attendance check-in (sinh viên) ====
+// Sinh viên: Check-in điểm danh
 export const checkInAttendanceApi = (payload: {
   sessionId: string;
   token: string;
@@ -66,8 +102,5 @@ export const checkInAttendanceApi = (payload: {
   accuracy?: number | null;
 }) => api.post("/attendance/check-in", payload);
 
-// ==== Student sessions by class (phục vụ SessionListScreen cũ) ====
-export const getSessionsByClass = (classId: string) =>
-  api.get(`/student/classes/${classId}/sessions`);
-
-
+// Sinh viên: Lấy lịch sử điểm danh
+export const getAttendanceHistory = () => api.get("/attendance/history");
