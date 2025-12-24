@@ -7,7 +7,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   RefreshControl,
+  StatusBar,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { getStudentClasses } from "../api/client";
 import { useAuth } from "../context/AuthContext";
@@ -90,7 +92,7 @@ const StudentClassListScreen: React.FC<Props> = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#4361ee" />
+        <ActivityIndicator size="large" color="#27ae60" />
         <Text style={styles.loadingText}>Đang tải lớp học...</Text>
       </View>
     );
@@ -98,30 +100,49 @@ const StudentClassListScreen: React.FC<Props> = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#27ae60" />
+      
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Lớp của tôi</Text>
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Text style={styles.logoutText}>Đăng xuất</Text>
+      <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerGreeting}>Xin chào, Sinh viên 👋</Text>
+            <Text style={styles.headerTitle}>Lớp học của tôi</Text>
+          </View>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <View style={styles.logoutIconContainer}>
+              <Text style={styles.logoutIcon}>⏻</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Stats Bar */}
+        <View style={styles.statsBar}>
+          <View style={styles.statItem}>
+            <Text style={styles.statNumber}>{classes.length}</Text>
+            <Text style={styles.statLabel}>Lớp đã tham gia</Text>
+          </View>
+        </View>
+      </SafeAreaView>
+
+      {/* Action Buttons */}
+      <View style={styles.actionButtons}>
+        <TouchableOpacity
+          style={styles.joinButton}
+          onPress={() => navigation.navigate("JoinClass")}
+        >
+          <Text style={styles.joinButtonIcon}>+</Text>
+          <Text style={styles.joinButtonText}>Tham gia lớp</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.historyButton}
+          onPress={() => navigation.navigate("AttendanceHistory")}
+        >
+          <Text style={styles.historyButtonIcon}>📋</Text>
+          <Text style={styles.historyButtonText}>Lịch sử</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Join Class Button */}
-      <TouchableOpacity
-        style={styles.joinButton}
-        onPress={() => navigation.navigate("JoinClass")}
-      >
-        <Text style={styles.joinButtonIcon}>+</Text>
-        <Text style={styles.joinButtonText}>Tham gia lớp học</Text>
-      </TouchableOpacity>
-
-      {/* History Button */}
-      <TouchableOpacity
-        style={styles.historyButton}
-        onPress={() => navigation.navigate("AttendanceHistory")}
-      >
-        <Text style={styles.historyButtonText}>📋 Xem lịch sử điểm danh</Text>
-      </TouchableOpacity>
 
       {/* Class List */}
       <FlatList
@@ -136,11 +157,11 @@ const StudentClassListScreen: React.FC<Props> = ({ navigation }) => {
             <Text style={styles.emptyIcon}>🎓</Text>
             <Text style={styles.emptyText}>Chưa tham gia lớp nào</Text>
             <Text style={styles.emptyHint}>
-              Bấm "Tham gia lớp học" để nhập mã lớp hoặc quét QR
+              Bấm "Tham gia lớp" để nhập mã lớp hoặc quét QR
             </Text>
           </View>
         }
-        contentContainerStyle={classes.length === 0 ? styles.emptyList : undefined}
+        contentContainerStyle={classes.length === 0 ? styles.emptyList : styles.listContent}
       />
     </View>
   );
@@ -161,68 +182,128 @@ const styles = StyleSheet.create({
     marginTop: 12,
     color: "#666",
   },
+  headerSafeArea: {
+    backgroundColor: "#27ae60",
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#27ae60",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    alignItems: "flex-start",
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerGreeting: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.8)",
+    marginBottom: 4,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#1a1a2e",
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#fff",
   },
   logoutButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    marginTop: 4,
   },
-  logoutText: {
-    color: "#e74c3c",
-    fontWeight: "600",
+  logoutIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "rgba(231, 76, 60, 0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoutIcon: {
+    fontSize: 16,
+    color: "#fff",
+  },
+  statsBar: {
+    flexDirection: "row",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#fff",
+  },
+  statLabel: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.8)",
+    marginTop: 4,
+  },
+  actionButtons: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 10,
   },
   joinButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#4361ee",
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 8,
+    backgroundColor: "#27ae60",
     paddingVertical: 14,
     borderRadius: 12,
-    shadowColor: "#4361ee",
+    shadowColor: "#27ae60",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   joinButtonIcon: {
-    fontSize: 22,
+    fontSize: 20,
     color: "#fff",
-    marginRight: 8,
+    marginRight: 6,
     fontWeight: "300",
   },
   joinButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
   },
   historyButton: {
+    flex: 1,
+    flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingVertical: 12,
+    justifyContent: "center",
+    paddingVertical: 14,
     borderRadius: 12,
     backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#4361ee",
+    borderWidth: 1.5,
+    borderColor: "#27ae60",
+  },
+  historyButtonIcon: {
+    fontSize: 16,
+    marginRight: 6,
   },
   historyButtonText: {
-    color: "#4361ee",
+    color: "#27ae60",
     fontSize: 15,
     fontWeight: "600",
+  },
+  listContent: {
+    paddingBottom: 20,
   },
   item: {
     backgroundColor: "#fff",
@@ -254,7 +335,7 @@ const styles = StyleSheet.create({
   codeValue: {
     fontSize: 14,
     fontWeight: "700",
-    color: "#4361ee",
+    color: "#27ae60",
     marginLeft: 6,
     letterSpacing: 1,
   },
@@ -294,4 +375,3 @@ const styles = StyleSheet.create({
 });
 
 export default StudentClassListScreen;
-
