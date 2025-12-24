@@ -12,6 +12,7 @@ import TeacherClassListScreen from "../screens/TeacherClassListScreen";
 import TeacherSessionListScreen from "../screens/TeacherSessionListScreen";
 import TeacherQrScreen from "../screens/TeacherQrScreen";
 import TeacherAttendanceListScreen from "../screens/TeacherAttendanceListScreen";
+import TeacherClassStatsScreen from "../screens/TeacherClassStatsScreen";
 import CreateClassScreen from "../screens/CreateClassScreen";
 
 // Student Screens
@@ -30,6 +31,7 @@ export type RootStackParamList = {
   TeacherSessions: { classId: string };
   TeacherQR: { sessionId: string };
   TeacherAttendance: { sessionId: string };
+  TeacherClassStats: { classId: string };
   CreateClass: undefined;
 
   // Student
@@ -106,7 +108,12 @@ const AppNavigator = () => {
             <Stack.Screen
               name="TeacherAttendance"
               component={TeacherAttendanceListScreen}
-              options={{ title: "SV đã điểm danh" }}
+              options={{ title: "Điểm danh" }}
+            />
+            <Stack.Screen
+              name="TeacherClassStats"
+              component={TeacherClassStatsScreen}
+              options={{ title: "Thống kê lớp học" }}
             />
           </>
         ) : (

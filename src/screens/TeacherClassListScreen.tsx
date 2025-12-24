@@ -70,31 +70,48 @@ const TeacherClassListScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const renderItem = ({ item }: { item: ClassItem }) => (
-    <TouchableOpacity
-      style={styles.item}
-      onPress={() => navigation.navigate("TeacherSessions", { classId: item._id })}
-    >
-      <View style={styles.itemHeader}>
-        <Text style={styles.name}>{item.name}</Text>
-        <View style={[styles.statusBadge, item.status === "active" ? styles.activeBadge : styles.closedBadge]}>
-          <Text style={styles.statusText}>
-            {item.status === "active" ? "Hoạt động" : "Đã đóng"}
-          </Text>
+    <View style={styles.item}>
+      <TouchableOpacity
+        onPress={() => navigation.navigate("TeacherSessions", { classId: item._id })}
+      >
+        <View style={styles.itemHeader}>
+          <Text style={styles.name}>{item.name}</Text>
+          <View style={[styles.statusBadge, item.status === "active" ? styles.activeBadge : styles.closedBadge]}>
+            <Text style={styles.statusText}>
+              {item.status === "active" ? "Hoạt động" : "Đã đóng"}
+            </Text>
+          </View>
         </View>
+        <View style={styles.codeRow}>
+          <Text style={styles.codeLabel}>Mã lớp:</Text>
+          <Text style={styles.codeValue}>{item.code}</Text>
+        </View>
+        {item.description && (
+          <Text style={styles.description} numberOfLines={2}>
+            {item.description}
+          </Text>
+        )}
+        <View style={styles.studentCountRow}>
+          <Text style={styles.statsText}>👥 {item.studentCount ?? 0} sinh viên</Text>
+        </View>
+      </TouchableOpacity>
+      
+      {/* Action Buttons */}
+      <View style={styles.itemActions}>
+        <TouchableOpacity
+          style={[styles.itemActionButton, styles.sessionsButton]}
+          onPress={() => navigation.navigate("TeacherSessions", { classId: item._id })}
+        >
+          <Text style={styles.itemActionText}>📅 Buổi học</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.itemActionButton, styles.statsButton]}
+          onPress={() => navigation.navigate("TeacherClassStats", { classId: item._id })}
+        >
+          <Text style={styles.itemActionText}>📊 Thống kê</Text>
+        </TouchableOpacity>
       </View>
-      <View style={styles.codeRow}>
-        <Text style={styles.codeLabel}>Mã lớp:</Text>
-        <Text style={styles.codeValue}>{item.code}</Text>
-      </View>
-      {item.description && (
-        <Text style={styles.description} numberOfLines={2}>
-          {item.description}
-        </Text>
-      )}
-      <View style={styles.statsRow}>
-        <Text style={styles.statsText}>👥 {item.studentCount ?? 0} sinh viên</Text>
-      </View>
-    </TouchableOpacity>
+    </View>
   );
 
   if (loading) {
@@ -119,7 +136,7 @@ const TeacherClassListScreen: React.FC<Props> = ({ navigation }) => {
           </View>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <View style={styles.logoutIconContainer}>
-              <Text style={styles.logoutIcon}>🚪</Text>
+              <Text style={styles.logoutIcon}>⏻</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -129,13 +146,6 @@ const TeacherClassListScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>{classes.length}</Text>
             <Text style={styles.statLabel}>Lớp học</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>
-              {classes.reduce((sum, c) => sum + (c.studentCount ?? 0), 0)}
-            </Text>
-            <Text style={styles.statLabel}>Sinh viên</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
@@ -232,12 +242,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(231, 76, 60, 0.9)",
     alignItems: "center",
     justifyContent: "center",
   },
   logoutIcon: {
-    fontSize: 18,
+    fontSize: 16,
+    color: "#fff",
   },
   statsBar: {
     flexDirection: "row",
@@ -354,13 +365,38 @@ const styles = StyleSheet.create({
     color: "#666",
     marginBottom: 8,
   },
-  statsRow: {
+  studentCountRow: {
     flexDirection: "row",
     alignItems: "center",
   },
   statsText: {
     fontSize: 13,
     color: "#888",
+  },
+  itemActions: {
+    flexDirection: "row",
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#eee",
+    gap: 10,
+  },
+  itemActionButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  sessionsButton: {
+    backgroundColor: "#4361ee",
+  },
+  statsButton: {
+    backgroundColor: "#9b59b6",
+  },
+  itemActionText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
   },
   emptyContainer: {
     alignItems: "center",

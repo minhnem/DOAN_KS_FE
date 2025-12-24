@@ -85,9 +85,24 @@ export const createSessionForTeacher = (payload: {
 export const generateQrForSession = (sessionId: string, expiresInMinutes = 5) =>
   api.post(`/attendance/sessions/${sessionId}/qr`, { expiresInMinutes });
 
-// Giảng viên: Lấy danh sách điểm danh theo buổi
+// Giảng viên: Lấy danh sách điểm danh theo buổi (chỉ SV đã điểm danh)
 export const getAttendanceBySession = (sessionId: string) =>
   api.get(`/attendance/sessions/${sessionId}/attendances`);
+
+// Giảng viên: Lấy danh sách tất cả SV với trạng thái điểm danh theo buổi
+export const getSessionStudentsWithAttendance = (sessionId: string) =>
+  api.get(`/attendance/sessions/${sessionId}/students`);
+
+// Giảng viên: Thống kê điểm danh theo lớp
+export const getClassAttendanceStats = (classId: string) =>
+  api.get(`/attendance/class/${classId}/stats`);
+
+// Giảng viên: Điểm danh thủ công cho sinh viên
+export const manualCheckInApi = (data: {
+  sessionId: string;
+  studentId: string;
+  status: "present" | "late" | "absent";
+}) => api.post("/attendance/manual-check-in", data);
 
 // Sinh viên: Lấy danh sách buổi điểm danh theo lớp
 export const getSessionsByClass = (classId: string) =>
