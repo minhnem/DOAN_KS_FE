@@ -110,6 +110,12 @@ const TeacherClassListScreen: React.FC<Props> = ({ navigation }) => {
         >
           <Text style={styles.itemActionText}>📊 Thống kê</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.itemActionButton, styles.editButton]}
+          onPress={() => navigation.navigate("EditClass", { classId: item._id })}
+        >
+          <Text style={styles.itemActionText}>✏️ Sửa</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -392,6 +398,9 @@ const styles = StyleSheet.create({
   },
   statsButton: {
     backgroundColor: "#9b59b6",
+  },
+  editButton: {
+    backgroundColor: "#f39c12",
   },
   itemActionText: {
     color: "#fff",

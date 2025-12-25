@@ -8,10 +8,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   StatusBar,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { getStudentClasses } from "../api/client";
+import { getStudentClasses, leaveClassApi } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 type Props = NativeStackScreenProps<any>;
@@ -68,25 +69,57 @@ const StudentClassListScreen: React.FC<Props> = ({ navigation }) => {
     await logout();
   };
 
+  const handleLeaveClass = (classId: string, className: string) => {
+    Alert.alert(
+      "Xác nhận thoát lớp",
+      `Bạn có chắc muốn thoát khỏi lớp "${className}"?`,
+      [
+        { text: "Hủy", style: "cancel" },
+        {
+          text: "Thoát lớp",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await leaveClassApi(classId);
+              Alert.alert("Thành công", "Đã thoát khỏi lớp học");
+              fetchClasses();
+            } catch (error: any) {
+              Alert.alert("Lỗi", error.response?.data?.message ?? "Không thể thoát lớp");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderItem = ({ item }: { item: ClassItem }) => (
-    <TouchableOpacity
-      style={styles.item}
-      onPress={() => navigation.navigate("StudentSessions", { classId: item._id })}
-    >
-      <Text style={styles.name}>{item.name}</Text>
-      <View style={styles.codeRow}>
-        <Text style={styles.codeLabel}>Mã lớp:</Text>
-        <Text style={styles.codeValue}>{item.code}</Text>
-      </View>
-      {item.teacherName && (
-        <Text style={styles.teacher}>👨‍🏫 GV: {item.teacherName}</Text>
-      )}
-      {item.description && (
-        <Text style={styles.description} numberOfLines={2}>
-          {item.description}
-        </Text>
-      )}
-    </TouchableOpacity>
+    <View style={styles.item}>
+      <TouchableOpacity
+        onPress={() => navigation.navigate("StudentSessions", { classId: item._id })}
+      >
+        <Text style={styles.name}>{item.name}</Text>
+        <View style={styles.codeRow}>
+          <Text style={styles.codeLabel}>Mã lớp:</Text>
+          <Text style={styles.codeValue}>{item.code}</Text>
+        </View>
+        {item.teacherName && (
+          <Text style={styles.teacher}>👨‍🏫 GV: {item.teacherName}</Text>
+        )}
+        {item.description && (
+          <Text style={styles.description} numberOfLines={2}>
+            {item.description}
+          </Text>
+        )}
+      </TouchableOpacity>
+      
+      {/* Leave Class Button */}
+      <TouchableOpacity
+        style={styles.leaveButton}
+        onPress={() => handleLeaveClass(item._id, item.name)}
+      >
+        <Text style={styles.leaveButtonText}>🚪 Thoát lớp</Text>
+      </TouchableOpacity>
+    </View>
   );
 
   if (loading) {
@@ -348,6 +381,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#888",
     marginTop: 4,
+  },
+  leaveButton: {
+    marginTop: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    borderWidth: 1.5,
+    borderColor: "#e74c3c",
+    alignItems: "center",
+  },
+  leaveButtonText: {
+    color: "#e74c3c",
+    fontSize: 14,
+    fontWeight: "600",
   },
   emptyContainer: {
     alignItems: "center",

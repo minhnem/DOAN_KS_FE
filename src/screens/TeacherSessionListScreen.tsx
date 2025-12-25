@@ -49,6 +49,14 @@ const TeacherSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
     fetchSessions();
   }, []);
 
+  // Refresh khi quay lại màn hình
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", () => {
+      fetchSessions();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const onCreateSession = async () => {
     try {
       if (!title.trim()) {
@@ -93,24 +101,44 @@ const TeacherSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
 
   const renderItem = ({ item }: { item: SessionItem }) => (
     <View style={styles.item}>
-      <Text style={styles.title}>{item.title}</Text>
-      <Text>
+      <View style={styles.itemHeader}>
+        <Text style={styles.title}>{item.title}</Text>
+        <TouchableOpacity
+          style={styles.editIconButton}
+          onPress={() => navigation.navigate("EditSession", { sessionId: item._id })}
+        >
+          <Text style={styles.editIcon}>✏️</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.timeText}>
         {new Date(item.startTime).toLocaleString()} -{" "}
         {new Date(item.endTime).toLocaleTimeString()}
       </Text>
-      <Text>Trạng thái: {item.status}</Text>
+      <View style={styles.statusRow}>
+        <Text style={styles.statusLabel}>Trạng thái:</Text>
+        <View style={[
+          styles.statusBadge,
+          item.status === "ongoing" ? styles.ongoingBadge :
+          item.status === "closed" ? styles.closedBadge : styles.scheduledBadge
+        ]}>
+          <Text style={styles.statusBadgeText}>
+            {item.status === "ongoing" ? "Đang mở" :
+             item.status === "closed" ? "Đã kết thúc" : "Sắp diễn ra"}
+          </Text>
+        </View>
+      </View>
       <View style={styles.row}>
         <TouchableOpacity
           style={styles.button}
           onPress={() => onOpenQR(item._id)}
         >
-          <Text style={styles.buttonText}>Mở QR</Text>
+          <Text style={styles.buttonText}>📱 Mở QR</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.button, styles.secondary]}
           onPress={() => navigation.navigate("TeacherAttendance", { sessionId: item._id })}
         >
-          <Text style={styles.buttonText}>Danh sách điểm danh</Text>
+          <Text style={styles.buttonText}>📋 Điểm danh</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -143,34 +171,87 @@ const TeacherSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  sectionTitle: { fontWeight: "bold", fontSize: 16, marginBottom: 8 },
+  container: { flex: 1, padding: 16, backgroundColor: "#f5f7fa" },
+  sectionTitle: { fontWeight: "bold", fontSize: 16, marginBottom: 8, color: "#1a1a2e" },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 8,
+    borderColor: "#e0e0e0",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 12,
+    backgroundColor: "#fff",
+    fontSize: 15,
   },
   item: {
-    padding: 12,
-    marginTop: 8,
-    borderWidth: 1,
-    borderRadius: 8,
-    borderColor: "#ddd",
+    padding: 16,
+    marginTop: 12,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  title: { fontWeight: "bold", fontSize: 15 },
-  row: { flexDirection: "row", marginTop: 8, gap: 8 },
+  itemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  title: { fontWeight: "700", fontSize: 16, color: "#1a1a2e", flex: 1 },
+  editIconButton: {
+    padding: 6,
+    marginLeft: 8,
+  },
+  editIcon: {
+    fontSize: 16,
+  },
+  timeText: {
+    fontSize: 13,
+    color: "#666",
+    marginBottom: 8,
+  },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  statusLabel: {
+    fontSize: 13,
+    color: "#888",
+    marginRight: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  ongoingBadge: {
+    backgroundColor: "#d4edda",
+  },
+  closedBadge: {
+    backgroundColor: "#e9ecef",
+  },
+  scheduledBadge: {
+    backgroundColor: "#fff3cd",
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#333",
+  },
+  row: { flexDirection: "row", marginTop: 4, gap: 10 },
   button: {
     flex: 1,
-    backgroundColor: "#007aff",
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: "#4361ee",
+    paddingVertical: 12,
+    borderRadius: 10,
     alignItems: "center",
   },
-  secondary: { backgroundColor: "#5856d6" },
-  buttonText: { color: "#fff", fontWeight: "600" },
+  secondary: { backgroundColor: "#9b59b6" },
+  buttonText: { color: "#fff", fontWeight: "600", fontSize: 13 },
 });
 
 export default TeacherSessionListScreen;

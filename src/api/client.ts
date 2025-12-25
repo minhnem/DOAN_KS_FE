@@ -52,12 +52,26 @@ export const getClassStudents = (classId: string) =>
 export const closeClass = (classId: string) =>
   api.put(`/class/${classId}/close`);
 
+// Giảng viên: Cập nhật lớp học
+export const updateClassApi = (
+  classId: string,
+  data: { name?: string; description?: string; maxStudents?: number; status?: string }
+) => api.put(`/class/${classId}`, data);
+
+// Giảng viên: Xóa lớp học
+export const deleteClassApi = (classId: string) =>
+  api.delete(`/class/${classId}`);
+
 // Sinh viên: Lấy danh sách lớp đã tham gia
 export const getStudentClasses = () => api.get("/class/student");
 
 // Sinh viên: Tham gia lớp bằng mã code
 export const joinClassByCodeApi = (code: string) =>
   api.post("/class/join", { code });
+
+// Sinh viên: Thoát khỏi lớp học
+export const leaveClassApi = (classId: string) =>
+  api.delete(`/class/${classId}/leave`);
 
 // Chung: Lấy thông tin chi tiết lớp
 export const getClassDetail = (classId: string) =>
@@ -103,6 +117,30 @@ export const manualCheckInApi = (data: {
   studentId: string;
   status: "present" | "late" | "absent";
 }) => api.post("/attendance/manual-check-in", data);
+
+// Giảng viên: Lấy chi tiết buổi học
+export const getSessionDetail = (sessionId: string) =>
+  api.get(`/attendance/sessions/${sessionId}`);
+
+// Giảng viên: Cập nhật buổi học
+export const updateSessionApi = (
+  sessionId: string,
+  data: {
+    title?: string;
+    startTime?: string;
+    endTime?: string;
+    attendanceWindowStart?: string;
+    attendanceWindowEnd?: string;
+    latitude?: number;
+    longitude?: number;
+    radius?: number;
+    status?: string;
+  }
+) => api.put(`/attendance/sessions/${sessionId}`, data);
+
+// Giảng viên: Xóa buổi học
+export const deleteSessionApi = (sessionId: string) =>
+  api.delete(`/attendance/sessions/${sessionId}`);
 
 // Sinh viên: Lấy danh sách buổi điểm danh theo lớp
 export const getSessionsByClass = (classId: string) =>
