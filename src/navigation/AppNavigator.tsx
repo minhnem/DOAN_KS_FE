@@ -24,6 +24,9 @@ import QRScannerScreen from "../screens/QRScannerScreen";
 import AttendanceHistoryScreen from "../screens/AttendanceHistoryScreen";
 import JoinClassScreen from "../screens/JoinClassScreen";
 
+// Shared Screens
+import AccountSettingsScreen from "../screens/AccountSettingsScreen";
+
 export type RootStackParamList = {
   // Auth
   Login: undefined;
@@ -44,6 +47,9 @@ export type RootStackParamList = {
   QRScanner: { sessionId: string };
   AttendanceHistory: undefined;
   JoinClass: undefined;
+
+  // Shared
+  AccountSettings: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -129,6 +135,11 @@ const AppNavigator = () => {
               component={EditSessionScreen}
               options={{ title: "Sửa buổi học" }}
             />
+            <Stack.Screen
+              name="AccountSettings"
+              component={AccountSettingsScreen}
+              options={{ headerShown: false }}
+            />
           </>
         ) : (
           // Student Stack (default)
@@ -157,6 +168,11 @@ const AppNavigator = () => {
               name="AttendanceHistory"
               component={AttendanceHistoryScreen}
               options={{ title: "Lịch sử điểm danh" }}
+            />
+            <Stack.Screen
+              name="AccountSettings"
+              component={AccountSettingsScreen}
+              options={{ headerShown: false }}
             />
           </>
         )}

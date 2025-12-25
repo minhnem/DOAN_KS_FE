@@ -50,8 +50,17 @@ const LoginScreen: React.FC<Props> = () => {
 
       if (!token) throw new Error("Không nhận được token từ server.");
 
+      // Tạo userData từ response
+      const userData = {
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        photoUrl: data.photoUrl,
+        rule: role,
+      };
+
       // Sử dụng context để login - sẽ tự động chuyển màn hình
-      await login(token, role);
+      await login(token, role, userData);
     } catch (error: any) {
       Alert.alert("Lỗi đăng nhập", error.response?.data?.message ?? error.message);
     } finally {
@@ -85,8 +94,17 @@ const LoginScreen: React.FC<Props> = () => {
 
       if (!token) throw new Error("Không nhận được token từ server.");
 
+      // Tạo userData từ response
+      const userData = {
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        photoUrl: data.photoUrl,
+        rule: role,
+      };
+
       // Sử dụng context để login - sẽ tự động chuyển màn hình
-      await login(token, role);
+      await login(token, role, userData);
       
       Alert.alert("Thành công", "Đăng ký thành công!");
     } catch (error: any) {

@@ -27,7 +27,7 @@ interface ClassItem {
 }
 
 const StudentClassListScreen: React.FC<Props> = ({ navigation }) => {
-  const { logout } = useAuth();
+  const { user } = useAuth();
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,10 +64,6 @@ const StudentClassListScreen: React.FC<Props> = ({ navigation }) => {
   const onRefresh = useCallback(() => {
     fetchClasses(true);
   }, []);
-
-  const handleLogout = async () => {
-    await logout();
-  };
 
   const handleLeaveClass = (classId: string, className: string) => {
     Alert.alert(
@@ -139,14 +135,19 @@ const StudentClassListScreen: React.FC<Props> = ({ navigation }) => {
       <SafeAreaView edges={["top"]} style={styles.headerSafeArea}>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.headerGreeting}>Xin chào, Sinh viên 👋</Text>
+            <Text style={styles.headerGreeting}>Xin chào, {user?.name ?? "Sinh viên"} 👋</Text>
             <Text style={styles.headerTitle}>Lớp học của tôi</Text>
           </View>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <View style={styles.logoutIconContainer}>
-              <Text style={styles.logoutIcon}>⏻</Text>
-            </View>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.settingsButton} 
+              onPress={() => navigation.navigate("AccountSettings")}
+            >
+              <View style={styles.settingsIconContainer}>
+                <Text style={styles.settingsIcon}>⚙️</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
         
         {/* Stats Bar */}
@@ -246,20 +247,24 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#fff",
   },
-  logoutButton: {
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  settingsButton: {
     marginTop: 4,
   },
-  logoutIconContainer: {
+  settingsIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: "rgba(231, 76, 60, 0.9)",
+    backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
   },
-  logoutIcon: {
-    fontSize: 16,
-    color: "#fff",
+  settingsIcon: {
+    fontSize: 18,
   },
   statsBar: {
     flexDirection: "row",

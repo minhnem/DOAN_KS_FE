@@ -157,3 +157,15 @@ export const checkInAttendanceApi = (payload: {
 
 // Sinh viên: Lấy lịch sử điểm danh
 export const getAttendanceHistory = () => api.get("/attendance/history");
+
+// ==== PROFILE/ACCOUNT MANAGEMENT ====
+// Lấy thông tin profile
+export const getProfileApi = () => api.get("/auth/profile");
+
+// Cập nhật thông tin profile
+export const updateProfileApi = (data: { name?: string; photoUrl?: string }) =>
+  api.put("/auth/profile", data);
+
+// Đổi mật khẩu
+export const changePasswordApi = (data: { currentPassword: string; newPassword: string }) =>
+  api.put("/auth/change-password", data);
