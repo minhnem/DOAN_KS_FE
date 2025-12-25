@@ -66,7 +66,7 @@ const TeacherAttendanceListScreen: React.FC<Props> = ({ route }) => {
 
   const handleManualCheckIn = async (
     studentId: string,
-    status: "present" | "late"
+    status: "present" | "late" | "absent"
   ) => {
     try {
       setProcessingId(studentId);
@@ -76,17 +76,20 @@ const TeacherAttendanceListScreen: React.FC<Props> = ({ route }) => {
       setStudents((prev) =>
         prev.map((s) =>
           s._id === studentId
-            ? { ...s, status, checkInTime: new Date().toISOString() }
+            ? {
+                ...s,
+                status,
+                checkInTime: status === "absent" ? null : new Date().toISOString(),
+              }
             : s
         )
       );
 
-      Alert.alert(
-        "Thành công",
-        `Đã điểm danh ${status === "present" ? "có mặt" : "muộn"}`
-      );
+      const statusText =
+        status === "present" ? "có mặt" : status === "late" ? "muộn" : "vắng";
+      Alert.alert("Thành công", `Đã đánh dấu ${statusText}`);
     } catch (error: any) {
-      Alert.alert("Lỗi", error.response?.data?.message ?? "Điểm danh thất bại");
+      Alert.alert("Lỗi", error.response?.data?.message ?? "Thao tác thất bại");
     } finally {
       setProcessingId(null);
     }
@@ -198,6 +201,13 @@ const TeacherAttendanceListScreen: React.FC<Props> = ({ route }) => {
                   <Text style={styles.miniButtonText}>Muộn</Text>
                 </TouchableOpacity>
               )}
+              <TouchableOpacity
+                style={[styles.miniButton, styles.miniAbsent]}
+                onPress={() => handleManualCheckIn(item._id, "absent")}
+                disabled={isProcessing}
+              >
+                <Text style={styles.miniButtonText}>Vắng</Text>
+              </TouchableOpacity>
             </View>
           </View>
         )}
@@ -415,6 +425,9 @@ const styles = StyleSheet.create({
   },
   miniLate: {
     backgroundColor: "#f39c12",
+  },
+  miniAbsent: {
+    backgroundColor: "#e74c3c",
   },
   miniButtonText: {
     color: "#fff",
