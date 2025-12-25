@@ -33,6 +33,14 @@ export const loginApi = (email: string, password: string) =>
 export const registerApi = (data: { name: string; email: string; password: string; rule?: number }) =>
   api.post("/auth/register", data);
 
+// Gửi mã xác minh email
+export const sendVerificationCodeApi = (data: { name: string; email: string; password: string; rule?: number }) =>
+  api.post("/auth/send-verification", data);
+
+// Xác minh mã và hoàn tất đăng ký  
+export const verifyCodeAndRegisterApi = (data: { email: string; code: string }) =>
+  api.post("/auth/verify-register", data);
+
 // ==== CLASS MANAGEMENT ====
 // Giảng viên: Tạo lớp học mới
 export const createClassApi = (data: {
