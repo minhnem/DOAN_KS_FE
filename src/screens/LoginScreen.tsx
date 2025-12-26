@@ -31,6 +31,7 @@ const LoginScreen: React.FC<Props> = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [studentId, setStudentId] = useState("");
   const [selectedRole, setSelectedRole] = useState<UserRole>(1);
   const [code, setCode] = useState("");
   
@@ -75,6 +76,7 @@ const LoginScreen: React.FC<Props> = () => {
     setName("");
     setEmail("");
     setPassword("");
+    setStudentId("");
     setSelectedRole(1);
     setCode("");
     setStep("form");
@@ -110,6 +112,11 @@ const LoginScreen: React.FC<Props> = () => {
       Alert.alert("Lỗi", "Vui lòng điền đầy đủ thông tin.");
       return;
     }
+    // Sinh viên phải có mã sinh viên
+    if (selectedRole === 1 && !studentId.trim()) {
+      Alert.alert("Lỗi", "Vui lòng nhập mã sinh viên.");
+      return;
+    }
     if (password.length < 6) {
       Alert.alert("Lỗi", "Mật khẩu phải có ít nhất 6 ký tự.");
       return;
@@ -121,6 +128,7 @@ const LoginScreen: React.FC<Props> = () => {
         email: email.trim(),
         password,
         rule: selectedRole,
+        studentId: selectedRole === 1 ? studentId.trim() : undefined,
       });
       setStep("verify");
       setCountdown(COUNTDOWN_SECONDS);
@@ -141,6 +149,7 @@ const LoginScreen: React.FC<Props> = () => {
         email: email.trim(),
         password,
         rule: selectedRole,
+        studentId: selectedRole === 1 ? studentId.trim() : undefined,
       });
       setCode("");
       setCountdown(COUNTDOWN_SECONDS);
@@ -287,6 +296,17 @@ const LoginScreen: React.FC<Props> = () => {
           </View>
 
           {/* Form */}
+          {/* Mã sinh viên - chỉ hiển thị cho sinh viên khi đăng ký */}
+          {mode === "register" && selectedRole === 1 && (
+            <TextInput
+              style={styles.input}
+              placeholder="Mã sinh viên"
+              placeholderTextColor="#999"
+              autoCapitalize="characters"
+              value={studentId}
+              onChangeText={setStudentId}
+            />
+          )}
           {mode === "register" && (
             <TextInput
               style={styles.input}

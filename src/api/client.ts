@@ -34,8 +34,13 @@ export const registerApi = (data: { name: string; email: string; password: strin
   api.post("/auth/register", data);
 
 // Gửi mã xác minh email
-export const sendVerificationCodeApi = (data: { name: string; email: string; password: string; rule?: number }) =>
-  api.post("/auth/send-verification", data);
+export const sendVerificationCodeApi = (data: { 
+  name: string; 
+  email: string; 
+  password: string; 
+  rule?: number;
+  studentId?: string;
+}) => api.post("/auth/send-verification", data);
 
 // Xác minh mã và hoàn tất đăng ký  
 export const verifyCodeAndRegisterApi = (data: { email: string; code: string }) =>
