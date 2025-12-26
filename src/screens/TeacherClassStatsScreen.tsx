@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 import { getClassAttendanceStats } from "../api/client";
@@ -21,7 +20,9 @@ interface StudentStats {
   totalSessions: number;
   presentCount: number;
   lateCount: number;
-  absentCount: number;
+  absentExcusedCount: number;
+  absentUnexcusedCount: number;
+  notCheckedIn: number;
   attendanceRate: number;
 }
 
@@ -64,52 +65,72 @@ const TeacherClassStatsScreen: React.FC<Props> = ({ route }) => {
     return "#e74c3c";
   };
 
-  const renderStudentItem = ({ item }: { item: StudentStats }) => (
-    <View style={styles.studentCard}>
-      <View style={styles.studentHeader}>
-        <View style={styles.studentInfo}>
-          <Text style={styles.studentName}>{item.name}</Text>
-          <Text style={styles.studentEmail}>{item.email}</Text>
-        </View>
-        <View
-          style={[
-            styles.rateCircle,
-            { borderColor: getAttendanceColor(item.attendanceRate) },
-          ]}
-        >
-          <Text
+  const renderStudentItem = ({ item }: { item: StudentStats }) => {
+    const totalAbsent = item.absentExcusedCount + item.absentUnexcusedCount + item.notCheckedIn;
+
+    return (
+      <View style={styles.studentCard}>
+        <View style={styles.studentHeader}>
+          <View style={styles.studentInfo}>
+            <Text style={styles.studentName}>{item.name}</Text>
+            <Text style={styles.studentEmail}>{item.email}</Text>
+          </View>
+          <View
             style={[
-              styles.rateText,
-              { color: getAttendanceColor(item.attendanceRate) },
+              styles.rateCircle,
+              { borderColor: getAttendanceColor(item.attendanceRate) },
             ]}
           >
-            {item.attendanceRate}%
-          </Text>
+            <Text
+              style={[
+                styles.rateText,
+                { color: getAttendanceColor(item.attendanceRate) },
+              ]}
+            >
+              {item.attendanceRate}%
+            </Text>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.statsRow}>
-        <View style={[styles.statBox, { backgroundColor: "#d4edda" }]}>
-          <Text style={[styles.statNumber, { color: "#155724" }]}>
-            {item.presentCount}
-          </Text>
-          <Text style={styles.statLabel}>Có mặt</Text>
+        {/* Stats Row 1: Có mặt & Muộn */}
+        <View style={styles.statsRow}>
+          <View style={[styles.statBox, { backgroundColor: "#d4edda" }]}>
+            <Text style={[styles.statNumber, { color: "#155724" }]}>
+              {item.presentCount}
+            </Text>
+            <Text style={[styles.statLabel, { color: "#155724" }]}>Có mặt</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: "#fff3cd" }]}>
+            <Text style={[styles.statNumber, { color: "#856404" }]}>
+              {item.lateCount}
+            </Text>
+            <Text style={[styles.statLabel, { color: "#856404" }]}>Muộn</Text>
+          </View>
         </View>
-        <View style={[styles.statBox, { backgroundColor: "#fff3cd" }]}>
-          <Text style={[styles.statNumber, { color: "#856404" }]}>
-            {item.lateCount}
-          </Text>
-          <Text style={styles.statLabel}>Muộn</Text>
+
+        {/* Stats Row 2: Vắng có phép & Vắng không phép */}
+        <View style={styles.statsRow}>
+          <View style={[styles.statBox, { backgroundColor: "#e2e3e5" }]}>
+            <Text style={[styles.statNumber, { color: "#383d41" }]}>
+              {item.absentExcusedCount}
+            </Text>
+            <Text style={[styles.statLabel, { color: "#383d41" }]}>Vắng có phép</Text>
+          </View>
+          <View style={[styles.statBox, { backgroundColor: "#f8d7da" }]}>
+            <Text style={[styles.statNumber, { color: "#721c24" }]}>
+              {item.absentUnexcusedCount + item.notCheckedIn}
+            </Text>
+            <Text style={[styles.statLabel, { color: "#721c24" }]}>Vắng không phép</Text>
+          </View>
         </View>
-        <View style={[styles.statBox, { backgroundColor: "#f8d7da" }]}>
-          <Text style={[styles.statNumber, { color: "#721c24" }]}>
-            {item.absentCount}
-          </Text>
-          <Text style={styles.statLabel}>Vắng</Text>
-        </View>
+
+        {/* Total sessions info */}
+        <Text style={styles.totalSessionsText}>
+          Tổng: {item.totalSessions} buổi học
+        </Text>
       </View>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -189,6 +210,7 @@ const styles = StyleSheet.create({
   headerCard: {
     backgroundColor: "#4361ee",
     margin: 16,
+    marginBottom: 12,
     padding: 20,
     borderRadius: 16,
   },
@@ -286,6 +308,7 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: "row",
     gap: 8,
+    marginBottom: 8,
   },
   statBox: {
     flex: 1,
@@ -299,8 +322,14 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 11,
-    color: "#666",
+    fontWeight: "500",
     marginTop: 2,
+  },
+  totalSessionsText: {
+    fontSize: 12,
+    color: "#888",
+    textAlign: "center",
+    marginTop: 4,
   },
   emptyContainer: {
     alignItems: "center",
@@ -313,4 +342,3 @@ const styles = StyleSheet.create({
 });
 
 export default TeacherClassStatsScreen;
-
