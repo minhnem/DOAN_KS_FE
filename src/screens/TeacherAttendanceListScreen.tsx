@@ -25,6 +25,7 @@ interface StudentAttendance {
   location: {
     distanceToClass?: number;
   } | null;
+  isOutsideArea?: boolean; // Ghi nhận nếu điểm danh ngoài vùng
 }
 
 interface SessionInfo {

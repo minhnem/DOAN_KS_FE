@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { getSessionsByClass } from "../api/client";
+import { getStudentSessionsWithAttendance } from "../api/client";
 
 type Props = NativeStackScreenProps<any>;
 
@@ -18,12 +19,16 @@ interface SessionItem {
   startTime: string;
   endTime: string;
   status: "scheduled" | "ongoing" | "closed";
+  attendanceStatus: "present" | "late" | "absent_excused" | "absent_unexcused" | null;
+  checkInTime: string | null;
 }
 
 const StudentSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
   const classId = route?.params?.classId as string | undefined;
+  const className = route?.params?.className as string | undefined;
   const [sessions, setSessions] = useState<SessionItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   if (!classId) {
     return (
@@ -33,15 +38,18 @@ const StudentSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
     );
   }
 
-  const fetchSessions = async () => {
+  const fetchSessions = async (isRefresh = false) => {
     try {
-      setLoading(true);
-      const res = await getSessionsByClass(classId);
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+
+      const res = await getStudentSessionsWithAttendance(classId);
       setSessions(res.data?.data ?? []);
     } catch (error) {
-      // TODO: Alert
+      console.error("Error fetching sessions:", error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -49,7 +57,7 @@ const StudentSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
     fetchSessions();
   }, []);
 
-  const getStatusDisplay = (status: string) => {
+  const getSessionStatusDisplay = (status: string) => {
     switch (status) {
       case "ongoing":
         return { text: "Đang mở", color: "#2ecc71", bgColor: "#d4edda" };
@@ -62,37 +70,88 @@ const StudentSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
     }
   };
 
+  const getAttendanceStatusDisplay = (status: string | null) => {
+    switch (status) {
+      case "present":
+        return { text: "✓ Có mặt", color: "#155724", bgColor: "#d4edda", icon: "✓" };
+      case "late":
+        return { text: "⏰ Muộn", color: "#856404", bgColor: "#fff3cd", icon: "⏰" };
+      case "absent_excused":
+        return { text: "📝 Vắng có phép", color: "#383d41", bgColor: "#e2e3e5", icon: "📝" };
+      case "absent_unexcused":
+        return { text: "✗ Vắng không phép", color: "#721c24", bgColor: "#f8d7da", icon: "✗" };
+      default:
+        return { text: "○ Chưa điểm danh", color: "#666", bgColor: "#f0f0f0", icon: "○" };
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("vi-VN", {
+      weekday: "short",
+      day: "2-digit",
+      month: "2-digit",
+    });
+  };
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const renderItem = ({ item }: { item: SessionItem }) => {
-    const statusInfo = getStatusDisplay(item.status);
+    const sessionStatus = getSessionStatusDisplay(item.status);
+    const attendanceStatus = getAttendanceStatusDisplay(item.attendanceStatus);
     const isOngoing = item.status === "ongoing";
+    const canCheckIn = isOngoing && !item.attendanceStatus;
 
     return (
       <TouchableOpacity
-        style={[styles.item, isOngoing && styles.itemOngoing]}
-        disabled={!isOngoing}
+        style={[styles.card, isOngoing && styles.cardOngoing]}
+        disabled={!canCheckIn}
         onPress={() =>
           navigation.navigate("QRScanner", {
             sessionId: item._id,
           })
         }
       >
-        <View style={styles.itemHeader}>
-          <Text style={styles.title}>{item.title || "Buổi học"}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: statusInfo.bgColor }]}>
-            <Text style={[styles.statusText, { color: statusInfo.color }]}>
-              {statusInfo.text}
+        {/* Header */}
+        <View style={styles.cardHeader}>
+          <View style={styles.sessionInfo}>
+            <Text style={styles.sessionTitle}>{item.title || "Buổi học"}</Text>
+            <Text style={styles.sessionDate}>
+              📅 {formatDate(item.startTime)} • {formatTime(item.startTime)} - {formatTime(item.endTime)}
+            </Text>
+          </View>
+          <View style={[styles.sessionBadge, { backgroundColor: sessionStatus.bgColor }]}>
+            <Text style={[styles.sessionBadgeText, { color: sessionStatus.color }]}>
+              {sessionStatus.text}
             </Text>
           </View>
         </View>
 
-        <Text style={styles.time}>
-          🕐 {new Date(item.startTime).toLocaleString("vi-VN")}
-        </Text>
-        <Text style={styles.timeEnd}>
-          → {new Date(item.endTime).toLocaleTimeString("vi-VN")}
-        </Text>
+        {/* Attendance Status */}
+        <View style={styles.attendanceRow}>
+          <Text style={styles.attendanceLabel}>Trạng thái điểm danh:</Text>
+          <View style={[styles.attendanceBadge, { backgroundColor: attendanceStatus.bgColor }]}>
+            <Text style={[styles.attendanceBadgeText, { color: attendanceStatus.color }]}>
+              {attendanceStatus.text}
+            </Text>
+          </View>
+        </View>
 
-        {isOngoing && (
+        {/* Check-in time if available */}
+        {item.checkInTime && (
+          <Text style={styles.checkInTime}>
+            ⏱️ Điểm danh lúc: {formatTime(item.checkInTime)}
+          </Text>
+        )}
+
+        {/* Scan prompt for ongoing sessions without attendance */}
+        {canCheckIn && (
           <View style={styles.scanPrompt}>
             <Text style={styles.scanPromptText}>👆 Bấm để quét QR điểm danh</Text>
           </View>
@@ -100,6 +159,13 @@ const StudentSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
       </TouchableOpacity>
     );
   };
+
+  // Thống kê nhanh
+  const presentCount = sessions.filter((s) => s.attendanceStatus === "present").length;
+  const lateCount = sessions.filter((s) => s.attendanceStatus === "late").length;
+  const absentExcusedCount = sessions.filter((s) => s.attendanceStatus === "absent_excused").length;
+  const absentUnexcusedCount = sessions.filter((s) => s.attendanceStatus === "absent_unexcused").length;
+  const notCheckedCount = sessions.filter((s) => !s.attendanceStatus && s.status === "closed").length;
 
   if (loading) {
     return (
@@ -112,10 +178,38 @@ const StudentSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* Stats */}
+      {sessions.length > 0 && (
+        <View style={styles.statsContainer}>
+          <View style={styles.statsRow}>
+            <View style={[styles.statItem, { backgroundColor: "#d4edda" }]}>
+              <Text style={[styles.statNumber, { color: "#155724" }]}>{presentCount}</Text>
+              <Text style={[styles.statLabel, { color: "#155724" }]}>Có mặt</Text>
+            </View>
+            <View style={[styles.statItem, { backgroundColor: "#fff3cd" }]}>
+              <Text style={[styles.statNumber, { color: "#856404" }]}>{lateCount}</Text>
+              <Text style={[styles.statLabel, { color: "#856404" }]}>Muộn</Text>
+            </View>
+            <View style={[styles.statItem, { backgroundColor: "#e2e3e5" }]}>
+              <Text style={[styles.statNumber, { color: "#383d41" }]}>{absentExcusedCount}</Text>
+              <Text style={[styles.statLabel, { color: "#383d41" }]}>Có phép</Text>
+            </View>
+            <View style={[styles.statItem, { backgroundColor: "#f8d7da" }]}>
+              <Text style={[styles.statNumber, { color: "#721c24" }]}>{absentUnexcusedCount + notCheckedCount}</Text>
+              <Text style={[styles.statLabel, { color: "#721c24" }]}>Vắng</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* List */}
       <FlatList
         data={sessions}
         keyExtractor={(item) => item._id}
         renderItem={renderItem}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => fetchSessions(true)} />
+        }
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -147,13 +241,11 @@ const styles = StyleSheet.create({
     color: "#e74c3c",
     fontSize: 16,
   },
-  listContent: {
-    padding: 16,
-  },
-  item: {
+  statsContainer: {
     backgroundColor: "#fff",
-    padding: 16,
-    marginBottom: 12,
+    margin: 16,
+    marginBottom: 8,
+    padding: 12,
     borderRadius: 12,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -161,50 +253,111 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  itemOngoing: {
+  statsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  statItem: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    borderRadius: 8,
+    gap: 4,
+  },
+  statNumber: {
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 20,
+  },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: "hidden",
+  },
+  cardOngoing: {
     borderWidth: 2,
     borderColor: "#2ecc71",
   },
-  itemHeader: {
+  cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
+    alignItems: "flex-start",
+    padding: 16,
+    paddingBottom: 12,
   },
-  title: {
+  sessionInfo: {
+    flex: 1,
+    marginRight: 10,
+  },
+  sessionTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: "#1a1a2e",
-    flex: 1,
+    marginBottom: 4,
   },
-  statusBadge: {
+  sessionDate: {
+    fontSize: 13,
+    color: "#666",
+  },
+  sessionBadge: {
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
     borderRadius: 12,
   },
-  statusText: {
+  sessionBadgeText: {
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  attendanceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    gap: 10,
+  },
+  attendanceLabel: {
+    fontSize: 13,
+    color: "#666",
+  },
+  attendanceBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  attendanceBadgeText: {
     fontSize: 12,
     fontWeight: "600",
   },
-  time: {
-    fontSize: 14,
-    color: "#555",
-  },
-  timeEnd: {
-    fontSize: 13,
+  checkInTime: {
+    fontSize: 12,
     color: "#888",
-    marginLeft: 20,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   scanPrompt: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#e0e0e0",
+    backgroundColor: "#d4edda",
+    paddingVertical: 12,
+    alignItems: "center",
   },
   scanPromptText: {
-    textAlign: "center",
-    color: "#2ecc71",
+    color: "#155724",
     fontWeight: "600",
+    fontSize: 14,
   },
   emptyContainer: {
     alignItems: "center",
@@ -222,4 +375,3 @@ const styles = StyleSheet.create({
 });
 
 export default StudentSessionListScreen;
-

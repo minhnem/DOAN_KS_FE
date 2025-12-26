@@ -166,6 +166,10 @@ export const checkInAttendanceApi = (payload: {
 // Sinh viên: Lấy lịch sử điểm danh
 export const getAttendanceHistory = () => api.get("/attendance/history");
 
+// Sinh viên: Lấy danh sách buổi học với trạng thái điểm danh
+export const getStudentSessionsWithAttendance = (classId: string) =>
+  api.get(`/attendance/student/class/${classId}/sessions`);
+
 // ==== PROFILE/ACCOUNT MANAGEMENT ====
 // Lấy thông tin profile
 export const getProfileApi = () => api.get("/auth/profile");
