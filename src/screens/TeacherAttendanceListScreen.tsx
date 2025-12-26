@@ -20,7 +20,7 @@ interface StudentAttendance {
   name: string;
   email: string;
   attendanceId: string | null;
-  status: "present" | "late" | "absent";
+  status: "present" | "late" | "absent" | "absent_excused" | "absent_unexcused";
   checkInTime: string | null;
   location: {
     distanceToClass?: number;
@@ -66,7 +66,7 @@ const TeacherAttendanceListScreen: React.FC<Props> = ({ route }) => {
 
   const handleManualCheckIn = async (
     studentId: string,
-    status: "present" | "late" | "absent"
+    status: "present" | "late" | "absent_excused" | "absent_unexcused"
   ) => {
     try {
       setProcessingId(studentId);
@@ -79,15 +79,19 @@ const TeacherAttendanceListScreen: React.FC<Props> = ({ route }) => {
             ? {
                 ...s,
                 status,
-                checkInTime: status === "absent" ? null : new Date().toISOString(),
+                checkInTime: new Date().toISOString(),
               }
             : s
         )
       );
 
-      const statusText =
-        status === "present" ? "có mặt" : status === "late" ? "muộn" : "vắng";
-      Alert.alert("Thành công", `Đã đánh dấu ${statusText}`);
+      const statusText: { [key: string]: string } = {
+        present: "có mặt",
+        late: "muộn",
+        absent_excused: "vắng có phép",
+        absent_unexcused: "vắng không phép",
+      };
+      Alert.alert("Thành công", `Đã đánh dấu ${statusText[status]}`);
     } catch (error: any) {
       Alert.alert("Lỗi", error.response?.data?.message ?? "Thao tác thất bại");
     } finally {
@@ -111,13 +115,27 @@ const TeacherAttendanceListScreen: React.FC<Props> = ({ route }) => {
           textColor: "#856404",
           icon: "⏰",
         };
+      case "absent_excused":
+        return {
+          text: "Vắng có phép",
+          bgColor: "#e2e3e5",
+          textColor: "#383d41",
+          icon: "📝",
+        };
+      case "absent_unexcused":
+        return {
+          text: "Vắng không phép",
+          bgColor: "#f8d7da",
+          textColor: "#721c24",
+          icon: "✗",
+        };
       case "absent":
       default:
         return {
           text: "Chưa điểm danh",
-          bgColor: "#f8d7da",
-          textColor: "#721c24",
-          icon: "✗",
+          bgColor: "#f0f0f0",
+          textColor: "#666",
+          icon: "○",
         };
     }
   };
@@ -152,29 +170,55 @@ const TeacherAttendanceListScreen: React.FC<Props> = ({ route }) => {
 
         {/* Nút điểm danh thủ công cho sinh viên chưa điểm danh */}
         {item.status === "absent" && (
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.presentButton]}
-              onPress={() => handleManualCheckIn(item._id, "present")}
-              disabled={isProcessing}
-            >
-              {isProcessing ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.actionButtonText}>✓ Có mặt</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.lateButton]}
-              onPress={() => handleManualCheckIn(item._id, "late")}
-              disabled={isProcessing}
-            >
-              {isProcessing ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.actionButtonText}>⏰ Muộn</Text>
-              )}
-            </TouchableOpacity>
+          <View style={styles.actionSection}>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.presentButton]}
+                onPress={() => handleManualCheckIn(item._id, "present")}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.actionButtonText}>✓ Có mặt</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.lateButton]}
+                onPress={() => handleManualCheckIn(item._id, "late")}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.actionButtonText}>⏰ Muộn</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.absentExcusedButton]}
+                onPress={() => handleManualCheckIn(item._id, "absent_excused")}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.actionButtonText}>📝 Vắng có phép</Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, styles.absentUnexcusedButton]}
+                onPress={() => handleManualCheckIn(item._id, "absent_unexcused")}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.actionButtonText}>✗ Vắng không phép</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -182,7 +226,7 @@ const TeacherAttendanceListScreen: React.FC<Props> = ({ route }) => {
         {item.status !== "absent" && (
           <View style={styles.changeStatusRow}>
             <Text style={styles.changeStatusLabel}>Đổi trạng thái:</Text>
-            <View style={styles.miniButtons}>
+            <View style={styles.miniButtonsWrap}>
               {item.status !== "present" && (
                 <TouchableOpacity
                   style={[styles.miniButton, styles.miniPresent]}
@@ -201,13 +245,24 @@ const TeacherAttendanceListScreen: React.FC<Props> = ({ route }) => {
                   <Text style={styles.miniButtonText}>Muộn</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                style={[styles.miniButton, styles.miniAbsent]}
-                onPress={() => handleManualCheckIn(item._id, "absent")}
-                disabled={isProcessing}
-              >
-                <Text style={styles.miniButtonText}>Vắng</Text>
-              </TouchableOpacity>
+              {item.status !== "absent_excused" && (
+                <TouchableOpacity
+                  style={[styles.miniButton, styles.miniAbsentExcused]}
+                  onPress={() => handleManualCheckIn(item._id, "absent_excused")}
+                  disabled={isProcessing}
+                >
+                  <Text style={styles.miniButtonText}>Có phép</Text>
+                </TouchableOpacity>
+              )}
+              {item.status !== "absent_unexcused" && (
+                <TouchableOpacity
+                  style={[styles.miniButton, styles.miniAbsentUnexcused]}
+                  onPress={() => handleManualCheckIn(item._id, "absent_unexcused")}
+                  disabled={isProcessing}
+                >
+                  <Text style={styles.miniButtonText}>Không phép</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         )}
@@ -218,7 +273,9 @@ const TeacherAttendanceListScreen: React.FC<Props> = ({ route }) => {
   // Thống kê nhanh
   const presentCount = students.filter((s) => s.status === "present").length;
   const lateCount = students.filter((s) => s.status === "late").length;
-  const absentCount = students.filter((s) => s.status === "absent").length;
+  const absentExcusedCount = students.filter((s) => s.status === "absent_excused").length;
+  const absentUnexcusedCount = students.filter((s) => s.status === "absent_unexcused").length;
+  const notCheckedInCount = students.filter((s) => s.status === "absent").length;
 
   if (loading) {
     return (
@@ -251,11 +308,20 @@ const TeacherAttendanceListScreen: React.FC<Props> = ({ route }) => {
           <Text style={[styles.statNumber, { color: "#856404" }]}>{lateCount}</Text>
           <Text style={styles.statLabel}>Muộn</Text>
         </View>
+        <View style={[styles.statItem, { backgroundColor: "#e2e3e5" }]}>
+          <Text style={[styles.statNumber, { color: "#383d41" }]}>{absentExcusedCount}</Text>
+          <Text style={styles.statLabel}>Có phép</Text>
+        </View>
         <View style={[styles.statItem, { backgroundColor: "#f8d7da" }]}>
-          <Text style={[styles.statNumber, { color: "#721c24" }]}>{absentCount}</Text>
-          <Text style={styles.statLabel}>Vắng</Text>
+          <Text style={[styles.statNumber, { color: "#721c24" }]}>{absentUnexcusedCount}</Text>
+          <Text style={styles.statLabel}>Không phép</Text>
         </View>
       </View>
+      {notCheckedInCount > 0 && (
+        <View style={styles.notCheckedBadge}>
+          <Text style={styles.notCheckedText}>⚠️ Chưa điểm danh: {notCheckedInCount}</Text>
+        </View>
+      )}
 
       {/* Students List */}
       <FlatList
@@ -375,15 +441,18 @@ const styles = StyleSheet.create({
     color: "#888",
     marginTop: 8,
   },
+  actionSection: {
+    marginTop: 12,
+    gap: 8,
+  },
   actionButtons: {
     flexDirection: "row",
-    marginTop: 12,
-    gap: 10,
+    gap: 8,
   },
   actionButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 10,
+    paddingVertical: 10,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -393,14 +462,18 @@ const styles = StyleSheet.create({
   lateButton: {
     backgroundColor: "#f39c12",
   },
+  absentExcusedButton: {
+    backgroundColor: "#6c757d",
+  },
+  absentUnexcusedButton: {
+    backgroundColor: "#e74c3c",
+  },
   actionButtonText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
   },
   changeStatusRow: {
-    flexDirection: "row",
-    alignItems: "center",
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
@@ -409,14 +482,15 @@ const styles = StyleSheet.create({
   changeStatusLabel: {
     fontSize: 12,
     color: "#888",
-    marginRight: 10,
+    marginBottom: 8,
   },
-  miniButtons: {
+  miniButtonsWrap: {
     flexDirection: "row",
-    gap: 8,
+    flexWrap: "wrap",
+    gap: 6,
   },
   miniButton: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
   },
@@ -426,12 +500,29 @@ const styles = StyleSheet.create({
   miniLate: {
     backgroundColor: "#f39c12",
   },
-  miniAbsent: {
+  miniAbsentExcused: {
+    backgroundColor: "#6c757d",
+  },
+  miniAbsentUnexcused: {
     backgroundColor: "#e74c3c",
   },
   miniButtonText: {
     color: "#fff",
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  notCheckedBadge: {
+    backgroundColor: "#fff3cd",
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  notCheckedText: {
+    color: "#856404",
+    fontSize: 13,
     fontWeight: "600",
   },
   emptyContainer: {
@@ -445,3 +536,4 @@ const styles = StyleSheet.create({
 });
 
 export default TeacherAttendanceListScreen;
+
