@@ -19,6 +19,7 @@ interface StudentAttendance {
   _id: string;
   name: string;
   email: string;
+  studentId: string;
   attendanceId: string | null;
   status: "present" | "late" | "absent" | "absent_excused" | "absent_unexcused";
   checkInTime: string | null;
@@ -150,7 +151,7 @@ const TeacherAttendanceListScreen: React.FC<Props> = ({ route }) => {
         <View style={styles.studentHeader}>
           <View style={styles.studentInfo}>
             <Text style={styles.studentName}>{item.name}</Text>
-            <Text style={styles.studentEmail}>{item.email}</Text>
+            <Text style={styles.studentEmail}>{item.studentId}</Text>
           </View>
           <View
             style={[styles.statusBadge, { backgroundColor: statusConfig.bgColor }]}

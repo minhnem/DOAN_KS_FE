@@ -128,7 +128,7 @@ export const getClassAttendanceStats = (classId: string) =>
 export const manualCheckInApi = (data: {
   sessionId: string;
   studentId: string;
-  status: "present" | "late" | "absent";
+  status: "present" | "late" | "absent" | "absent_excused" | "absent_unexcused";
 }) => api.post("/attendance/manual-check-in", data);
 
 // Giảng viên: Lấy chi tiết buổi học
