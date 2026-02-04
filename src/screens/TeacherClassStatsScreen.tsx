@@ -17,6 +17,7 @@ interface StudentStats {
   _id: string;
   name: string;
   email: string;
+  studentId: string;
   totalSessions: number;
   presentCount: number;
   lateCount: number;
@@ -73,7 +74,7 @@ const TeacherClassStatsScreen: React.FC<Props> = ({ route }) => {
         <View style={styles.studentHeader}>
           <View style={styles.studentInfo}>
             <Text style={styles.studentName}>{item.name}</Text>
-            <Text style={styles.studentEmail}>{item.email}</Text>
+            <Text style={styles.studentEmail}>{item.studentId}</Text>
           </View>
           <View
             style={[
