@@ -8,6 +8,7 @@ import {
   TextInput,
   Button,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
@@ -16,6 +17,7 @@ import {
   generateQrForSession,
   getSessionsByClassForTeacher,
 } from "../api/client";
+import * as Location from "expo-location";
 
 type Props = NativeStackScreenProps<RootStackParamList, "TeacherSessions">;
 
@@ -32,6 +34,7 @@ const TeacherSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const fetchSessions = async () => {
     try {
@@ -60,10 +63,44 @@ const TeacherSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
   const onCreateSession = async () => {
     try {
       if (!title.trim()) {
-        Alert.alert("Thiếu tiêu đề buổi học");
+        Alert.alert("Lỗi", "Vui lòng nhập tiêu đề buổi học");
         return;
       }
-      // Demo: tạo buổi trong 2 giờ, cho phép điểm danh 15 phút đầu
+
+      setCreating(true);
+
+      // Xin quyền và lấy vị trí thực
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Lỗi", "Cần cấp quyền vị trí để tạo buổi điểm danh");
+        setCreating(false);
+        return;
+      }
+
+      // Lấy vị trí GPS
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      const latitude = location.coords.latitude;
+      const longitude = location.coords.longitude;
+      
+      console.log("📍 Vị trí tạo buổi học:", { latitude, longitude });
+
+      // Kiểm tra vị trí hợp lệ
+      if (latitude === 0 && longitude === 0) {
+        Alert.alert("Lỗi", "Không thể lấy vị trí GPS. Vui lòng bật GPS và thử lại.");
+        setCreating(false);
+        return;
+      }
+
+      if (!latitude || !longitude) {
+        Alert.alert("Lỗi", "Vị trí GPS không hợp lệ. Vui lòng thử lại.");
+        setCreating(false);
+        return;
+      }
+
+      // Tạo buổi trong 2 giờ, cho phép điểm danh 15 phút đầu
       const now = new Date();
       const startTime = now.toISOString();
       const endTime = new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString();
@@ -71,22 +108,30 @@ const TeacherSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
         now.getTime() + 15 * 60 * 1000
       ).toISOString();
 
-      await createSessionForTeacher({
+      const response = await createSessionForTeacher({
         courseId: classId,
         title,
         startTime,
         endTime,
         attendanceWindowStart: startTime,
         attendanceWindowEnd,
-        latitude: 10.0, // TODO: thay bằng vị trí thật của lớp
-        longitude: 106.0,
-        radius: 50,
+        latitude,
+        longitude,
+        radius: 100, // Bán kính 100m
       });
+
+      console.log("✅ Session đã tạo:", response.data?.data);
 
       setTitle("");
       fetchSessions();
+      Alert.alert(
+        "✅ Tạo buổi thành công!", 
+        `📍 Vị trí lớp học:\n${latitude.toFixed(6)}, ${longitude.toFixed(6)}\n\n📏 Bán kính điểm danh: 100m\n⏱️ Thời gian điểm danh: 15 phút đầu\n\n💡 Sinh viên cần ở trong phạm vi 100m để điểm danh "Có mặt"`
+      );
     } catch (error: any) {
       Alert.alert("Lỗi tạo buổi", error.response?.data?.message ?? error.message);
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -152,8 +197,22 @@ const TeacherSessionListScreen: React.FC<Props> = ({ route, navigation }) => {
         placeholder="Tiêu đề buổi học"
         value={title}
         onChangeText={setTitle}
+        editable={!creating}
       />
-      <Button title="Tạo buổi" onPress={onCreateSession} />
+      <TouchableOpacity
+        style={[styles.createButton, creating && styles.createButtonDisabled]}
+        onPress={onCreateSession}
+        disabled={creating}
+      >
+        {creating ? (
+          <View style={styles.createButtonContent}>
+            <ActivityIndicator size="small" color="#fff" />
+            <Text style={styles.createButtonText}>Đang lấy vị trí...</Text>
+          </View>
+        ) : (
+          <Text style={styles.createButtonText}>📍 Tạo buổi tại vị trí hiện tại</Text>
+        )}
+      </TouchableOpacity>
 
       <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Danh sách buổi</Text>
       {loading ? (
@@ -182,6 +241,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: "#fff",
     fontSize: 15,
+  },
+  createButton: {
+    backgroundColor: "#4361ee",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  createButtonDisabled: {
+    opacity: 0.7,
+  },
+  createButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  createButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
   },
   item: {
     padding: 16,

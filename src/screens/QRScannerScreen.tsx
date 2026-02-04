@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import React, { useEffect, useState, useRef } from "react";
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Location from "expo-location";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -11,40 +11,96 @@ const QRScannerScreen: React.FC<Props> = ({ navigation }) => {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
   const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  
+  // Dùng ref để tránh double navigation và double scan
+  const hasNavigated = useRef(false);
+  const isScanning = useRef(false);
 
   useEffect(() => {
     (async () => {
       const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
       setHasLocationPermission(locStatus === "granted");
     })();
+    
+    // Reset khi unmount
+    return () => {
+      hasNavigated.current = false;
+      isScanning.current = false;
+    };
   }, []);
 
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    if (scanned) return;
-    
-    try {
-      setScanned(true);
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "present":
+        return "✅ Có mặt";
+      case "late":
+        return "⏰ Muộn";
+      case "absent_excused":
+        return "📝 Vắng có phép";
+      case "absent_unexcused":
+        return "❌ Vắng không phép (ngoài vùng cho phép)";
+      default:
+        return status;
+    }
+  };
 
+  const safeGoBack = () => {
+    if (hasNavigated.current) return;
+    hasNavigated.current = true;
+    navigation.goBack();
+  };
+
+  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+    // Chặn quét nhiều lần bằng cả state và ref
+    if (scanned || processing || isScanning.current || hasNavigated.current) return;
+    
+    isScanning.current = true;
+    setScanned(true);
+    setProcessing(true);
+
+    try {
       // QR được sinh từ backend: { sessionId: "...", token: "..." }
-      const parsed = JSON.parse(data);
+      let parsed;
+      try {
+        parsed = JSON.parse(data);
+      } catch {
+        throw new Error("Mã QR không đúng định dạng JSON.");
+      }
+      
       const sessionId = parsed.sessionId as string;
       const token = parsed.token as string;
 
       if (!sessionId || !token) {
-        throw new Error("Mã QR không đúng định dạng.");
+        throw new Error("Mã QR không chứa thông tin điểm danh.");
       }
 
       if (!hasLocationPermission) {
-        throw new Error("Chưa cấp quyền vị trí.");
+        throw new Error("Chưa cấp quyền vị trí. Vui lòng cấp quyền và thử lại.");
       }
 
-      const location = await Location.getCurrentPositionAsync({
+      // Hiển thị đang lấy vị trí
+      console.log("📍 Đang lấy vị trí GPS...");
+
+      // Lấy vị trí GPS
+      const locationResult = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High,
       });
 
-      const latitude = location.coords.latitude;
-      const longitude = location.coords.longitude;
-      const accuracy = location.coords.accuracy ?? null;
+      const latitude = locationResult.coords.latitude;
+      const longitude = locationResult.coords.longitude;
+      const accuracy = locationResult.coords.accuracy;
+      
+      console.log("📍 Vị trí điểm danh:", { latitude, longitude, accuracy });
+
+      // Kiểm tra vị trí hợp lệ (không phải 0,0)
+      if (latitude === 0 && longitude === 0) {
+        throw new Error("Không thể lấy vị trí GPS. Vui lòng bật GPS và thử lại.");
+      }
+
+      if (!latitude || !longitude) {
+        throw new Error("Vị trí GPS không hợp lệ. Vui lòng thử lại.");
+      }
 
       const res = await checkInAttendanceApi({
         sessionId,
@@ -54,15 +110,30 @@ const QRScannerScreen: React.FC<Props> = ({ navigation }) => {
         accuracy,
       });
 
-      Alert.alert("Thông báo", res.data?.message ?? "Điểm danh thành công.", [
-        { text: "OK", onPress: () => navigation.goBack() },
+      const attendanceData = res.data?.data;
+      const status = attendanceData?.status || "present";
+      const distance = attendanceData?.location?.distanceToClass;
+
+      // Tạo message chi tiết
+      let message = `Trạng thái: ${getStatusText(status)}`;
+      if (distance !== undefined && distance !== null) {
+        message += `\nKhoảng cách đến lớp: ${Math.round(distance)}m`;
+      }
+      message += `\n\nVị trí của bạn:\n${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+
+      // Hiển thị thông báo thành công và quay lại
+      Alert.alert("🎉 Điểm danh thành công!", message, [
+        { text: "OK", onPress: safeGoBack },
       ]);
+
     } catch (error: any) {
-      Alert.alert(
-        "Lỗi",
-        error.response?.data?.message ?? error.message ?? "Điểm danh thất bại.",
-        [{ text: "Quét lại", onPress: () => setScanned(false) }]
-      );
+      const errorMessage = error.response?.data?.message ?? error.message ?? "Điểm danh thất bại.";
+      Alert.alert("❌ Lỗi điểm danh", errorMessage, [
+        { text: "Quay lại", onPress: safeGoBack },
+      ]);
+    } finally {
+      setProcessing(false);
+      isScanning.current = false;
     }
   };
 
@@ -104,7 +175,7 @@ const QRScannerScreen: React.FC<Props> = ({ navigation }) => {
         barcodeScannerSettings={{
           barcodeTypes: ["qr"],
         }}
-        onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+        onBarcodeScanned={(scanned || processing) ? undefined : handleBarCodeScanned}
       />
       
       {/* Overlay với khung quét */}
@@ -121,11 +192,13 @@ const QRScannerScreen: React.FC<Props> = ({ navigation }) => {
           <View style={styles.overlaySide} />
         </View>
         <View style={styles.overlayBottom}>
-          <Text style={styles.scanHint}>Đưa mã QR vào khung để quét</Text>
-          {scanned && (
-            <TouchableOpacity style={styles.rescanButton} onPress={() => setScanned(false)}>
-              <Text style={styles.rescanButtonText}>Quét lại</Text>
-            </TouchableOpacity>
+          {processing ? (
+            <View style={styles.processingContainer}>
+              <ActivityIndicator size="large" color="#4361ee" />
+              <Text style={styles.processingText}>Đang xử lý điểm danh...</Text>
+            </View>
+          ) : (
+            <Text style={styles.scanHint}>Đưa mã QR vào khung để quét</Text>
           )}
         </View>
       </View>
@@ -229,17 +302,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
-  rescanButton: {
-    marginTop: 20,
-    backgroundColor: "#4361ee",
+  processingContainer: {
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.95)",
     paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 12,
+    paddingVertical: 24,
+    borderRadius: 16,
   },
-  rescanButtonText: {
-    color: "#fff",
+  processingText: {
+    color: "#4361ee",
     fontSize: 16,
     fontWeight: "600",
+    marginTop: 12,
   },
 });
 
