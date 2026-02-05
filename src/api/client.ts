@@ -27,8 +27,8 @@ api.interceptors.request.use(async (config: any) => {
 });
 
 // ==== Auth (dùng chung) ====
-export const loginApi = (email: string, password: string) =>
-  api.post("/auth/login", { email, password });
+export const loginApi = (email: string, password: string, deviceId?: string) =>
+  api.post("/auth/login", { email, password, deviceId });
 
 export const registerApi = (data: { name: string; email: string; password: string; rule?: number }) =>
   api.post("/auth/register", data);
@@ -43,7 +43,7 @@ export const sendVerificationCodeApi = (data: {
 }) => api.post("/auth/send-verification", data);
 
 // Xác minh mã và hoàn tất đăng ký  
-export const verifyCodeAndRegisterApi = (data: { email: string; code: string }) =>
+export const verifyCodeAndRegisterApi = (data: { email: string; code: string; deviceId?: string }) =>
   api.post("/auth/verify-register", data);
 
 // ==== CLASS MANAGEMENT ====
@@ -186,3 +186,31 @@ export const updateProfileApi = (data: { name?: string; photoUrl?: string }) =>
 // Đổi mật khẩu
 export const changePasswordApi = (data: { currentPassword: string; newPassword: string }) =>
   api.put("/auth/change-password", data);
+
+// ==== DEVICE MANAGEMENT ====
+// Sinh viên: Gửi yêu cầu đổi thiết bị
+export const createDeviceRequestApi = (data: {
+  studentId: string;
+  oldDeviceId?: string;
+  newDeviceId: string;
+}) => api.post("/device/request", data);
+
+// Sinh viên: Kiểm tra trạng thái yêu cầu
+export const checkDeviceRequestStatusApi = (studentId: string) =>
+  api.get(`/device/request/status/${studentId}`);
+
+// Giảng viên: Lấy danh sách yêu cầu đổi thiết bị
+export const getDeviceRequestsApi = (status?: "pending" | "approved" | "rejected") =>
+  api.get("/device/requests", { params: status ? { status } : {} });
+
+// Giảng viên: Đếm số yêu cầu pending
+export const countPendingDeviceRequestsApi = () =>
+  api.get("/device/requests/count");
+
+// Giảng viên: Phê duyệt yêu cầu
+export const approveDeviceRequestApi = (requestId: string) =>
+  api.put(`/device/requests/${requestId}/approve`);
+
+// Giảng viên: Từ chối yêu cầu
+export const rejectDeviceRequestApi = (requestId: string, reason?: string) =>
+  api.put(`/device/requests/${requestId}/reject`, { reason });

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { getTeacherClasses } from "../api/client";
+import { getTeacherClasses, countPendingDeviceRequestsApi } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 type Props = NativeStackScreenProps<RootStackParamList, "TeacherClasses">;
@@ -31,6 +31,7 @@ const TeacherClassListScreen: React.FC<Props> = ({ navigation }) => {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [pendingDeviceRequests, setPendingDeviceRequests] = useState(0);
 
   const fetchClasses = async (isRefresh = false) => {
     try {
@@ -49,14 +50,25 @@ const TeacherClassListScreen: React.FC<Props> = ({ navigation }) => {
     }
   };
 
+  const fetchPendingDeviceRequests = async () => {
+    try {
+      const res = await countPendingDeviceRequestsApi();
+      setPendingDeviceRequests(res.data?.data?.count ?? 0);
+    } catch (error) {
+      console.error("Error fetching pending requests:", error);
+    }
+  };
+
   useEffect(() => {
     fetchClasses();
+    fetchPendingDeviceRequests();
   }, []);
 
   // Refresh khi quay lại màn hình
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
       fetchClasses();
+      fetchPendingDeviceRequests();
     });
     return unsubscribe;
   }, [navigation]);
@@ -164,14 +176,29 @@ const TeacherClassListScreen: React.FC<Props> = ({ navigation }) => {
         </View>
       </SafeAreaView>
 
-      {/* Create Class Button */}
-      <TouchableOpacity
-        style={styles.createButton}
-        onPress={() => navigation.navigate("CreateClass")}
-      >
-        <Text style={styles.createButtonIcon}>+</Text>
-        <Text style={styles.createButtonText}>Tạo lớp học mới</Text>
-      </TouchableOpacity>
+      {/* Action Buttons Row */}
+      <View style={styles.actionButtonsRow}>
+        <TouchableOpacity
+          style={styles.createButton}
+          onPress={() => navigation.navigate("CreateClass")}
+        >
+          <Text style={styles.createButtonIcon}>+</Text>
+          <Text style={styles.createButtonText}>Tạo lớp học</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.deviceButton}
+          onPress={() => navigation.navigate("DeviceRequests")}
+        >
+          <Text style={styles.deviceButtonIcon}>📱</Text>
+          <Text style={styles.deviceButtonText}>Thiết bị</Text>
+          {pendingDeviceRequests > 0 && (
+            <View style={styles.deviceBadge}>
+              <Text style={styles.deviceBadgeText}>{pendingDeviceRequests}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
 
       {/* Class List */}
       <FlatList
@@ -289,13 +316,18 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.3)",
     marginVertical: 4,
   },
+  actionButtonsRow: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginVertical: 12,
+    gap: 12,
+  },
   createButton: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#4361ee",
-    marginHorizontal: 16,
-    marginVertical: 12,
     paddingVertical: 14,
     borderRadius: 12,
     shadowColor: "#4361ee",
@@ -307,13 +339,56 @@ const styles = StyleSheet.create({
   createButtonIcon: {
     fontSize: 22,
     color: "#fff",
-    marginRight: 8,
+    marginRight: 6,
     fontWeight: "300",
   },
   createButtonText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
+  },
+  deviceButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#27ae60",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: "#27ae60",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+    position: "relative",
+  },
+  deviceButtonIcon: {
+    fontSize: 18,
+    marginRight: 6,
+  },
+  deviceButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  deviceBadge: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "#e74c3c",
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  deviceBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
   },
   item: {
     backgroundColor: "#fff",

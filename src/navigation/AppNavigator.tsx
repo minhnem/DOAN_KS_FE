@@ -16,6 +16,7 @@ import TeacherClassStatsScreen from "../screens/TeacherClassStatsScreen";
 import CreateClassScreen from "../screens/CreateClassScreen";
 import EditClassScreen from "../screens/EditClassScreen";
 import EditSessionScreen from "../screens/EditSessionScreen";
+import DeviceRequestsScreen from "../screens/DeviceRequestsScreen";
 
 // Student Screens
 import StudentClassListScreen from "../screens/StudentClassListScreen";
@@ -40,6 +41,7 @@ export type RootStackParamList = {
   CreateClass: undefined;
   EditClass: { classId: string };
   EditSession: { sessionId: string };
+  DeviceRequests: undefined;
 
   // Student
   StudentClasses: undefined;
@@ -134,6 +136,11 @@ const AppNavigator = () => {
               name="EditSession"
               component={EditSessionScreen}
               options={{ title: "Sửa buổi học" }}
+            />
+            <Stack.Screen
+              name="DeviceRequests"
+              component={DeviceRequestsScreen}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="AccountSettings"

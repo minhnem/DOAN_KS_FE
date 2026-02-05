@@ -10,9 +10,18 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { loginApi, sendVerificationCodeApi, verifyCodeAndRegisterApi } from "../api/client";
+import * as Device from "expo-device";
+import * as Application from "expo-application";
+import { 
+  loginApi, 
+  sendVerificationCodeApi, 
+  verifyCodeAndRegisterApi,
+  createDeviceRequestApi,
+  checkDeviceRequestStatusApi,
+} from "../api/client";
 import { useAuth } from "../context/AuthContext";
 
 type Props = NativeStackScreenProps<any>;
@@ -22,6 +31,22 @@ type RegisterStep = "form" | "verify";
 type UserRole = 1 | 2;
 
 const COUNTDOWN_SECONDS = 60;
+
+// Lấy Device ID duy nhất cho thiết bị
+const getDeviceId = async (): Promise<string> => {
+  try {
+    if (Platform.OS === "android") {
+      const androidId = Application.getAndroidId();
+      return androidId || `android-${Device.modelName}-${Date.now()}`;
+    } else if (Platform.OS === "ios") {
+      const iosId = await Application.getIosIdForVendorAsync();
+      return iosId || `ios-${Device.modelName}-${Date.now()}`;
+    }
+    return `device-${Device.modelName}-${Date.now()}`;
+  } catch {
+    return `device-${Date.now()}`;
+  }
+};
 
 const LoginScreen: React.FC<Props> = () => {
   const { login } = useAuth();
@@ -39,6 +64,18 @@ const LoginScreen: React.FC<Props> = () => {
   const [countdown, setCountdown] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const codeInputRef = useRef<TextInput>(null);
+
+  // Device change states
+  const [showDeviceModal, setShowDeviceModal] = useState(false);
+  const [deviceChangeInfo, setDeviceChangeInfo] = useState<{
+    studentId: string;
+    studentName: string;
+    studentCode: string;
+    oldDeviceId: string;
+    newDeviceId: string;
+    pendingApproval: boolean;
+  } | null>(null);
+  const [sendingRequest, setSendingRequest] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -90,7 +127,11 @@ const LoginScreen: React.FC<Props> = () => {
     }
     try {
       setLoading(true);
-      const res = await loginApi(email.trim(), password);
+      
+      // Lấy Device ID
+      const deviceId = await getDeviceId();
+      
+      const res = await loginApi(email.trim(), password, deviceId);
       const data = res.data?.data;
       if (!data?.token) throw new Error("Không nhận được token.");
       await login(data.token, data.rule ?? 1, {
@@ -101,9 +142,59 @@ const LoginScreen: React.FC<Props> = () => {
         rule: data.rule ?? 1,
       });
     } catch (err: any) {
-      Alert.alert("Lỗi", err.response?.data?.message ?? err.message);
+      const responseData = err.response?.data;
+      
+      // Kiểm tra xem có phải lỗi đổi thiết bị không
+      if (responseData?.requireDeviceChange) {
+        if (responseData.pendingApproval) {
+          // Đang chờ duyệt
+          Alert.alert(
+            "⏳ Đang chờ phê duyệt",
+            "Yêu cầu đổi thiết bị của bạn đang được giáo viên xem xét. Vui lòng đợi hoặc liên hệ giáo viên.",
+            [{ text: "Đã hiểu" }]
+          );
+        } else {
+          // Cần gửi yêu cầu đổi thiết bị
+          const deviceId = await getDeviceId();
+          setDeviceChangeInfo({
+            studentId: responseData.studentId,
+            studentName: responseData.studentName,
+            studentCode: responseData.studentCode,
+            oldDeviceId: responseData.oldDeviceId,
+            newDeviceId: deviceId,
+            pendingApproval: false,
+          });
+          setShowDeviceModal(true);
+        }
+      } else {
+        Alert.alert("Lỗi", responseData?.message ?? err.message);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendDeviceRequest = async () => {
+    if (!deviceChangeInfo) return;
+    
+    try {
+      setSendingRequest(true);
+      await createDeviceRequestApi({
+        studentId: deviceChangeInfo.studentId,
+        oldDeviceId: deviceChangeInfo.oldDeviceId,
+        newDeviceId: deviceChangeInfo.newDeviceId,
+      });
+      
+      setShowDeviceModal(false);
+      Alert.alert(
+        "✅ Yêu cầu đã được gửi",
+        "Yêu cầu đổi thiết bị đã được gửi đến giáo viên. Vui lòng chờ phê duyệt trước khi đăng nhập lại.",
+        [{ text: "Đã hiểu" }]
+      );
+    } catch (err: any) {
+      Alert.alert("Lỗi", err.response?.data?.message ?? "Không thể gửi yêu cầu");
+    } finally {
+      setSendingRequest(false);
     }
   };
 
@@ -168,7 +259,15 @@ const LoginScreen: React.FC<Props> = () => {
     }
     try {
       setLoading(true);
-      const res = await verifyCodeAndRegisterApi({ email: email.trim(), code });
+      
+      // Lấy Device ID cho sinh viên
+      const deviceId = selectedRole === 1 ? await getDeviceId() : undefined;
+      
+      const res = await verifyCodeAndRegisterApi({ 
+        email: email.trim(), 
+        code,
+        deviceId,
+      });
       const data = res.data?.data;
       if (!data?.token) throw new Error("Không nhận được token.");
       await login(data.token, data.rule ?? selectedRole, {
@@ -380,6 +479,56 @@ const LoginScreen: React.FC<Props> = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Device Change Modal */}
+      <Modal
+        visible={showDeviceModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeviceModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalIcon}>📱</Text>
+            <Text style={styles.modalTitle}>Đổi thiết bị</Text>
+            <Text style={styles.modalMessage}>
+              Tài khoản này đã được đăng ký trên thiết bị khác.{"\n\n"}
+              Nếu bạn muốn sử dụng thiết bị này, vui lòng gửi yêu cầu đổi thiết bị đến giáo viên.
+            </Text>
+
+            {deviceChangeInfo && (
+              <View style={styles.deviceInfoBox}>
+                <Text style={styles.deviceInfoText}>
+                  👤 {deviceChangeInfo.studentName}
+                </Text>
+                <Text style={styles.deviceInfoText}>
+                  🆔 MSV: {deviceChangeInfo.studentCode}
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => setShowDeviceModal(false)}
+              >
+                <Text style={styles.modalCancelText}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSendButton, sendingRequest && styles.buttonDisabled]}
+                onPress={handleSendDeviceRequest}
+                disabled={sendingRequest}
+              >
+                {sendingRequest ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalSendText}>Gửi yêu cầu</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -466,6 +615,79 @@ const styles = StyleSheet.create({
   resendTextDisabled: { color: "#aaa" },
   backBtn: { paddingVertical: 12, alignItems: "center" },
   backText: { color: "#888", fontSize: 14 },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 340,
+    alignItems: "center",
+  },
+  modalIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1a1a2e",
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  deviceInfoBox: {
+    backgroundColor: "#f0f4ff",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    width: "100%",
+  },
+  deviceInfoText: {
+    fontSize: 14,
+    color: "#1a1a2e",
+    marginBottom: 6,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    marginTop: 20,
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#f0f0f0",
+    alignItems: "center",
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#666",
+  },
+  modalSendButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "#4361ee",
+    alignItems: "center",
+  },
+  modalSendText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#fff",
+  },
 });
 
 export default LoginScreen;
